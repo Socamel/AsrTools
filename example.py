@@ -1,4 +1,4 @@
-from bk_asr import BcutASR, JianYingASR, KuaiShouASR
+ from bk_asr import JianYingASR
 
 
 if __name__ == '__main__':

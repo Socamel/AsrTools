@@ -19,7 +19,7 @@ from qfluentwidgets import (ComboBox, PushButton, LineEdit, TableWidget, FluentI
                             Action, RoundMenu, InfoBar, InfoBarPosition,
                             FluentWindow, BodyLabel, MessageBox)
 
-# from bk_asr.BcutASR import BcutASR
+from bk_asr.BcutASR import BcutASR
 from bk_asr.JianYingASR import JianYingASR
 from bk_asr.KuaiShouASR import KuaiShouASR
 
@@ -51,7 +51,7 @@ class ASRWorker(QRunnable):
         try:
             use_cache = True
             
-            # 检查文件类�?如果不是音频则转�?
+            # 检查文件类型,如果不是音频则转换
             logging.info("[+]正在进ffmpeg转换")
             audio_exts = ['.mp3', '.wav']
             if not any(self.file_path.lower().endswith(ext) for ext in audio_exts):
@@ -62,7 +62,7 @@ class ASRWorker(QRunnable):
             else:
                 self.audio_path = self.file_path
             
-            # 根据选择�?ASR 引擎实例化相应的�?
+            # 根据选择的 ASR 引擎实例化相应的类
             if self.asr_engine == 'B 接口':
                 asr = BcutASR(self.audio_path, use_cache=use_cache)
             elif self.asr_engine == 'J 接口':
@@ -74,9 +74,9 @@ class ASRWorker(QRunnable):
                 # asr = WhisperASR(self.file_path, use_cache=use_cache)
                 raise NotImplementedError("WhisperASR 暂未实现")
             else:
-                raise ValueError(f"未知�?ASR 引擎: {self.asr_engine}")
+                raise ValueError(f"未知的 ASR 引擎: {self.asr_engine}")
 
-            logging.info(f"开始处理文�? {self.file_path} 使用引擎: {self.asr_engine}")
+            logging.info(f"开始处理文件: {self.file_path} 使用引擎: {self.asr_engine}")
             result = asr.run()
             
             # 根据导出格式选择转换方法
@@ -94,8 +94,8 @@ class ASRWorker(QRunnable):
                 f.write(result_text)
             self.signals.finished.emit(self.file_path, result_text)
         except Exception as e:
-            logging.error(f"处理文件 {self.file_path} 时出�? {str(e)}")
-            self.signals.errno.emit(self.file_path, f"处理时出�? {str(e)}")
+            logging.error(f"处理文件 {self.file_path} 时出错: {str(e)}")
+            self.signals.errno.emit(self.file_path, f"处理时出错: {str(e)}")
 
 class UpdateCheckerThread(QThread):
     msg = pyqtSignal(str, str, str)  # 用于发送消息的信号
@@ -108,15 +108,15 @@ class UpdateCheckerThread(QThread):
             from check_update import check_update, check_internet_connection
             # 检查互联网连接
             if not check_internet_connection():
-                self.msg.emit("错误", "无法连接到互联网，请检查网络连接�?, "")
+                self.msg.emit("错误", "无法连接到互联网，请检查网络连接。", "")
                 return
-            # 检查更�?
+            # 检查更新
             config = check_update(self)
             if config:
                 if config['fource']:
-                    self.msg.emit("更新", "检测到新版本，请下载最新版本�?, config['update_download_url'])
+                    self.msg.emit("更新", "检测到新版本，请下载最新版本。", config['update_download_url'])
                 else:
-                    self.msg.emit("可更�?, "检测到新版本，请下载最新版本�?, config['update_download_url'])
+                    self.msg.emit("可更新", "检测到新版本，请下载最新版本。", config['update_download_url'])
         except Exception as e:
             pass
 
@@ -131,7 +131,7 @@ class ASRWidget(QWidget):
         self.thread_pool = QThreadPool()
         self.thread_pool.setMaxThreadCount(self.max_threads)
         self.processing_queue = []
-        self.workers = {}  # 维护文件路径到worker的映�?
+        self.workers = {}  # 维护文件路径到worker的映射
 
 
     def init_ui(self):
@@ -160,7 +160,7 @@ class ASRWidget(QWidget):
         # 文件选择区域
         file_layout = QHBoxLayout()
         self.file_input = LineEdit(self)
-        self.file_input.setPlaceholderText("拖拽文件或文件夹到这�?)
+        self.file_input.setPlaceholderText("拖拽文件或文件夹到这里")
         self.file_input.setReadOnly(True)
         self.file_button = PushButton("选择文件", self)
         self.file_button.clicked.connect(self.select_file)
@@ -171,7 +171,7 @@ class ASRWidget(QWidget):
         # 文件列表表格
         self.table = TableWidget(self)
         self.table.setColumnCount(2)
-        self.table.setHorizontalHeaderLabels(['文件�?, '状�?])
+        self.table.setHorizontalHeaderLabels(['文件名', '状态'])
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
         layout.addWidget(self.table)
@@ -184,7 +184,7 @@ class ASRWidget(QWidget):
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # 处理按钮
-        self.process_button = PushButton("开始处�?, self)
+        self.process_button = PushButton("开始处理", self)
         self.process_button.clicked.connect(self.process_files)
         self.process_button.setEnabled(False)  # 初始禁用
         layout.addWidget(self.process_button)
@@ -192,19 +192,19 @@ class ASRWidget(QWidget):
         self.setAcceptDrops(True)
 
     def select_file(self):
-        """选择文件对话�?""
-        files, _ = QFileDialog.getOpenFileNames(self, "选择音频或视频文�?, "",
+        """选择文件对话框"""
+        files, _ = QFileDialog.getOpenFileNames(self, "选择音频或视频文件", "",
                                                 "Media Files (*.mp3 *.wav *.ogg *.mp4 *.avi *.mov *.ts)")
         for file in files:
             self.add_file_to_table(file)
         self.update_start_button_state()
 
     def add_file_to_table(self, file_path):
-        """将文件添加到表格�?""
+        """将文件添加到表格中"""
         if self.find_row_by_file_path(file_path) != -1:
             InfoBar.warning(
-                title='文件已存�?,
-                content=f"文件 {os.path.basename(file_path)} 已经添加到列表中�?,
+                title='文件已存在',
+                content=f"文件 {os.path.basename(file_path)} 已经添加到列表中。",
                 orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.TOP,
@@ -216,7 +216,7 @@ class ASRWidget(QWidget):
         row_count = self.table.rowCount()
         self.table.insertRow(row_count)
         item_filename = self.create_non_editable_item(os.path.basename(file_path))
-        item_status = self.create_non_editable_item("未处�?)
+        item_status = self.create_non_editable_item("未处理")
         item_status.setForeground(QColor("gray"))
         self.table.setItem(row_count, 0, item_filename)
         self.table.setItem(row_count, 1, item_status)
@@ -258,13 +258,13 @@ class ASRWidget(QWidget):
                 worker.signals.finished.disconnect(self.update_table)
                 worker.signals.errno.disconnect(self.handle_error)
                 # QThreadPool 不支持直接终止线程，通常需要设计任务可中断
-                # 这里仅移除引�?
+                # 这里仅移除引用
                 self.workers.pop(file_path, None)
             self.table.removeRow(current_row)
             self.update_start_button_state()
 
     def open_file_directory(self):
-        """打开文件所在目�?""
+        """打开文件所在目录"""
         current_row = self.table.currentRow()
         if current_row >= 0:
             current_item = self.table.item(current_row, 0)
@@ -290,15 +290,15 @@ class ASRWidget(QWidget):
                     )
 
     def reprocess_selected_file(self):
-        """重新处理选中的文�?""
+        """重新处理选中的文件"""
         current_row = self.table.currentRow()
         if current_row >= 0:
             file_path = self.table.item(current_row, 0).data(Qt.UserRole)
             status = self.table.item(current_row, 1).text()
-            if status == "处理�?:
+            if status == "处理中":
                 InfoBar.warning(
-                    title='当前文件正在处理�?,
-                    content="请等待当前文件处理完成后再重新处理�?,
+                    title='当前文件正在处理中',
+                    content="请等待当前文件处理完成后再重新处理。",
                     orient=Qt.Horizontal,
                     isClosable=True,
                     position=InfoBarPosition.TOP,
@@ -309,20 +309,20 @@ class ASRWidget(QWidget):
             self.add_to_queue(file_path)
 
     def add_to_queue(self, file_path):
-        """将文件添加到处理队列并更新状�?""
+        """将文件添加到处理队列并更新状态"""
         self.processing_queue.append(file_path)
         self.process_next_in_queue()
 
     def process_files(self):
-        """处理所有未处理的文�?""
+        """处理所有未处理的文件"""
         for row in range(self.table.rowCount()):
-            if self.table.item(row, 1).text() == "未处�?:
+            if self.table.item(row, 1).text() == "未处理":
                 file_path = self.table.item(row, 0).data(Qt.UserRole)
                 self.processing_queue.append(file_path)
         self.process_next_in_queue()
 
     def process_next_in_queue(self):
-        """处理队列中的下一个文�?""
+        """处理队列中的下一个文件"""
         while self.thread_pool.activeThreadCount() < self.max_threads and self.processing_queue:
             file_path = self.processing_queue.pop(0)
             if file_path not in self.workers:
@@ -340,22 +340,22 @@ class ASRWidget(QWidget):
 
         row = self.find_row_by_file_path(file_path)
         if row != -1:
-            status_item = self.create_non_editable_item("处理�?)
+            status_item = self.create_non_editable_item("处理中")
             status_item.setForeground(QColor("orange"))
             self.table.setItem(row, 1, status_item)
             self.update_start_button_state()
 
     def update_table(self, file_path, result):
-        """更新表格中文件的处理状�?""
+        """更新表格中文件的处理状态"""
         row = self.find_row_by_file_path(file_path)
         if row != -1:
-            item_status = self.create_non_editable_item("已处�?)
+            item_status = self.create_non_editable_item("已处理")
             item_status.setForeground(QColor("green"))
             self.table.setItem(row, 1, item_status)
 
             InfoBar.success(
                 title='处理完成',
-                content=f"文件 {self.table.item(row, 0).text()} 已处理完�?,
+                content=f"文件 {self.table.item(row, 0).text()} 已处理完成",
                 orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.TOP,
@@ -398,9 +398,9 @@ class ASRWidget(QWidget):
         return -1
 
     def update_start_button_state(self):
-        """根据文件列表更新开始处理按钮的状�?""
+        """根据文件列表更新开始处理按钮的状态"""
         has_unprocessed = any(
-            self.table.item(row, 1).text() == "未处�?
+            self.table.item(row, 1).text() == "未处理"
             for row in range(self.table.rowCount())
         )
         self.process_button.setEnabled(has_unprocessed)
@@ -436,13 +436,13 @@ class InfoWidget(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        # GitHub URL 和仓库描�?
+        # GitHub URL 和仓库描述
         GITHUB_URL = "https://github.com/WEIFENG2333/AsrTools"
         REPO_DESCRIPTION = """
-    🚀 无需复杂配置：无需 GPU 和繁琐的本地配置，小白也能轻松使用�?
-    🖥�?高颜值界面：基于 PyQt5 �?qfluentwidgets，界面美观且用户友好�?
-    �?效率超人：多线程并发 + 批量处理，文字转换快如闪电�?
-    📄 多格式支持：支持生成 .srt �?.txt 字幕文件，满足不同需求�?
+    🚀 无需复杂配置：无需 GPU 和繁琐的本地配置，小白也能轻松使用。
+    🖥️ 高颜值界面：基于 PyQt5 和 qfluentwidgets，界面美观且用户友好。
+    ⚡ 效率超人：多线程并发 + 批量处理，文字转换快如闪电。
+    📄 多格式支持：支持生成 .srt 和 .txt 字幕文件，满足不同需求。
         """
         
         main_layout = QVBoxLayout(self)
@@ -469,7 +469,7 @@ class InfoWidget(QWidget):
 
 
 class MainWindow(FluentWindow):
-    """主窗�?""
+    """主窗口"""
     def __init__(self):
         super().__init__()
         self.setWindowTitle('ASR Processing Tool')
